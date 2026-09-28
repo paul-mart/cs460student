@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XTK WebGL Cube Art // Quantum Kinetic Visualizer</title>
+  
+  <style>
+    :root {
+      --bg: #070913;
+      --panel-bg: rgba(14, 18, 36, 0.78);
+      --panel-border: rgba(99, 132, 255, 0.22);
+      --panel-glow: rgba(56, 189, 248, 0.15);
+      --accent-cyan: #00f0ff;
+      --accent-pink: #ff007b;
+      --accent-purple: #9d4edd;
+      --accent-gold: #ffbe0b;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      background-color: var(--bg);
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+    }
+
+    /* Ambient animated starfield background */
+    #space-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 50%, #151a3a 0%, #080b18 50%, #03040a 100%);
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .nebula-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(130px);
+      opacity: 0.18;
+      pointer-events: none;
+      animation: floatNebula 22s ease-in-out infinite alternate;
+    }
+
+    .nebula-1 {
+      top: 10%;
+      left: 15%;
+      background: #7928ca;
+    }
+
+    .nebula-2 {
+      bottom: 10%;
+      right: 15%;
+      background: #0070f3;
+      animation-delay: -8s;
+    }
+
+    @keyframes floatNebula {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(80px, 60px) scale(1.25); }
+    }
+
+    /* Container for XTK Canvas */
+    #xtk-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #xtk-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      cursor: grab;
+    }
+
+    #xtk-container canvas:active {
+      cursor: grabbing;
+    }
+
+    /* UI Overlay Layer */
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 20px;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    #ui-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.98);
+    }
+
+    /* Top Navigation / Brand Header */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: auto;
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 10px 18px;
+      border-radius: 9999px;
+      box-shadow: 0 8px 32px var(--panel-glow);
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-pink));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.6);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+    }
+
+    .brand-logo-inner {
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 3px;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #ffffff, #a5b4fc, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+
+    .brand-tag {
+      font-size: 11px;
+      color: var(--accent-cyan);
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge-btn {
+      pointer-events: auto;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 8px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .badge-btn:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .badge-btn.active {
+      background: rgba(0, 240, 255, 0.2);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    /* Main Floating Control Panel (Dock) */
+    .dock-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+      pointer-events: none;
+      gap: 20px;
+    }
+
+    .panel-card {
+      pointer-events: auto;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 18px;
+      padding: 18px 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+      max-width: 440px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0;
+    }
+
+    /* Formation Grid Buttons */
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 9px 6px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn .icon {
+      font-size: 14px;
+    }
+
+    .preset-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .preset-btn.active {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.22), rgba(157, 78, 221, 0.22));
+      border-color: var(--accent-cyan);
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Color Palettes */
+    .palette-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .palette-btn {
+      flex: 1;
+      height: 32px;
+      border-radius: 8px;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .palette-preview {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .palette-stripe {
+      flex: 1;
+      height: 100%;
+    }
+
+    .palette-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .palette-btn.active {
+      border-color: #ffffff;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Slider Rows */
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .control-header span:last-child {
+      color: var(--accent-cyan);
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      outline: none;
+      cursor: pointer;
+      margin: 4px 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+    }
+
+    /* Toggle Switches & Actions */
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .toggle-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-chip:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .toggle-chip.active {
+      background: rgba(0, 240, 255, 0.12);
+      border-color: rgba(0, 240, 255, 0.4);
+      color: var(--accent-cyan);
+    }
+
+    .toggle-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .toggle-chip.active .toggle-indicator {
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+
+    /* Action Buttons Row */
+    .action-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-action {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(157, 78, 221, 0.15));
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      color: #fff;
+      border-radius: 9px;
+      padding: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.3), rgba(157, 78, 221, 0.3));
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-action:active {
+      transform: translateY(1px);
+    }
+
+    /* Right Quick Stats & Shortcuts Card */
+    .info-card {
+      pointer-events: auto;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 18px;
+      padding: 18px 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-family: monospace;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .stat-value.highlight {
+      color: var(--accent-cyan);
+    }
+
+    .kbd-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .kbd-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    kbd {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #fff;
+    }
+
+    /* Floating UI Toggle Button (when UI is hidden) */
+    #ui-toggle-btn {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      z-index: 20;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: #fff;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    #ui-toggle-btn:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+      transform: scale(1.08);
+    }
+
+    /* Notification Toast */
+    #toast-msg {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(50px);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--accent-cyan);
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.35);
+      backdrop-filter: blur(16px);
+      color: #ffffff;
+      padding: 10px 22px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      pointer-events: none;
+      z-index: 100;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    #toast-msg.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 860px) {
+      .info-card {
+        display: none;
+      }
+      .panel-card {
+        max-width: 100%;
+      }
+      .dock-container {
+        justify-content: center;
+      }
+    }
+  </style>
+
+  <!-- Load XTK library from CDN with local fallback -->
+  <script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"></script>
+  <script type="text/javascript">
+    if (typeof X === 'undefined') {
+      document.write('<script type="text/javascript" src="xtk_edge.js"><\/script>');
+    }
+  </script>
+</head>
+<body>
+
+  <!-- Ambient Space / Nebula Canvas Backdrop -->
+  <div id="space-bg">
+    <div class="nebula-glow nebula-1"></div>
+    <div class="nebula-glow nebula-2"></div>
+  </div>
+
+  <!-- Main XTK WebGL Render Target -->
+  <div id="xtk-container"></div>
+
+  <!-- Floating HUD Toggle Button -->
+  <button id="ui-toggle-btn" title="Toggle HUD (H)" aria-label="Toggle HUD">⚙️</button>
+
+  <!-- Notification Toast -->
+  <div id="toast-msg">Swarm Launched!</div>
+
+  <!-- Interactive Glassmorphic Control Overlay -->
+  <div id="ui-overlay">
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <div class="brand-logo-inner"></div>
+        </div>
+        <div>
+          <h1 class="brand-title">XTK // Quantum Cube Art</h1>
+        </div>
+        <span class="brand-tag" id="current-preset-tag">VORTEX</span>
+      </div>
+
+      <div class="header-actions">
+        <button id="audio-toggle-btn" class="badge-btn" title="Toggle Audio Pulse (A)">
+          <span id="audio-icon">🔇</span>
+          <span id="audio-label">Sound Pulse</span>
+        </button>
+        <button id="reset-cam-btn" class="badge-btn" title="Reset Camera View (R)">
+          <span>🎥</span>
+          <span>Reset Camera</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Bottom Dock with Control Panels -->
+    <div class="dock-container">
+      <!-- Left Panel: Core Customization & Art Sculptures -->
+      <div class="panel-card">
+        <!-- Formations -->
+        <div>
+          <div class="panel-section-title">
+            <span>Sculpture Formation</span>
+            <span style="color:var(--text-muted);font-size:10px;">[Keys 1 - 6]</span>
+          </div>
+          <div class="button-grid" style="margin-top: 8px;">
+            <button class="preset-btn" data-preset="matrix">
+              <span class="icon">🧊</span>
+              <span>Hypercube</span>
+            </button>
+            <button class="preset-btn active" data-preset="vortex">
+              <span class="icon">🌀</span>
+              <span>Vortex</span>
+            </button>
+            <button class="preset-btn" data-preset="helix">
+              <span class="icon">🧬</span>
+              <span>DNA Helix</span>
+            </button>
+            <button class="preset-btn" data-preset="wave">
+              <span class="icon">🌊</span>
+              <span>Cyber Wave</span>
+            </button>
+            <button class="preset-btn" data-preset="sphere">
+              <span class="icon">🔮</span>
+              <span>Sacred Sphere</span>
+            </button>
+            <button class="preset-btn" data-preset="supernova">
+              <span class="icon">💥</span>
+              <span>Supernova</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Color Themes -->
+        <div>
+          <div class="panel-section-title">
+            <span>Color Palette</span>
+            <span style="color:var(--text-muted);font-size:10px;">[C to cycle]</span>
+          </div>
+          <div class="palette-row" style="margin-top: 8px;">
+            <!-- Cyberpunk Neon -->
+            <button class="palette-btn active" data-palette="cyberpunk" title="Cyberpunk Neon">
+              <div class="palette-preview">
+                <div class="palette-stripe" style="background:#00f0ff"></div>
+                <div class="palette-stripe" style="background:#ff007b"></div>
+                <div class="palette-stripe" style="background:#9d4edd"></div>
+              </div>
+            </button>
+            <!-- Aurora Borealis -->
+            <button class="palette-btn" data-palette="aurora" title="Aurora Borealis">
+              <div class="palette-preview">
+                <div class="palette-stripe" style="background:#00ffaa"></div>
+                <div class="palette-stripe" style="background:#00b4d8"></div>
+                <div class="palette-stripe" style="background:#7209b7"></div>
+              </div>
+            </button>
+            <!-- Solar Inferno -->
+            <button class="palette-btn" data-palette="solar" title="Solar Flare / Inferno">
+              <div class="palette-preview">
+                <div class="palette-stripe" style="background:#ffbe0b"></div>
+                <div class="palette-stripe" style="background:#fb5607"></div>
+                <div class="palette-stripe" style="background:#ff006e"></div>
+              </div>
+            </button>
+            <!-- Synthwave 80s -->
+            <button class="palette-btn" data-palette="synthwave" title="Synthwave Sunset">
+              <div class="palette-preview">
+                <div class="palette-stripe" style="background:#f72585"></div>
+                <div class="palette-stripe" style="background:#7209b7"></div>
+                <div class="palette-stripe" style="background:#4cc9f0"></div>
+              </div>
+            </button>
+            <!-- Prism Spectrum -->
+            <button class="palette-btn" data-palette="rainbow" title="Prism Rainbow">
+              <div class="palette-preview">
+                <div class="palette-stripe" style="background:#ff0000"></div>
+                <div class="palette-stripe" style="background:#00ff00"></div>
+                <div class="palette-stripe" style="background:#0000ff"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sliders -->
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="control-row">
+            <div class="control-header">
+              <span>Orbital Speed</span>
+              <span id="speed-val">1.0x</span>
+            </div>
+            <input type="range" id="speed-slider" min="0" max="3" step="0.1" value="1.0">
+          </div>
+
+          <div class="control-row">
+            <div class="control-header">
+              <span>Wave Amplitude / Morph</span>
+              <span id="wave-val">1.0x</span>
+            </div>
+            <input type="range" id="wave-slider" min="0.2" max="2.5" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <!-- Toggle Options -->
+        <div class="toggle-grid">
+          <div class="toggle-chip active" id="toggle-orbit">
+            <span>Auto Orbit</span>
+            <div class="toggle-indicator"></div>
+          </div>
+          <div class="toggle-chip active" id="toggle-flying">
+            <span>Flying Cubes</span>
+            <div class="toggle-indicator"></div>
+          </div>
+          <div class="toggle-chip active" id="toggle-spin">
+            <span>Cube Spin</span>
+            <div class="toggle-indicator"></div>
+          </div>
+          <div class="toggle-chip" id="toggle-wireframe">
+            <span>Wireframe</span>
+            <div class="toggle-indicator"></div>
+          </div>
+        </div>
+
+        <!-- Interactive Action Triggers -->
+        <div class="action-row">
+          <button class="btn-action" id="btn-swarm" title="Launch Flying Cube Swarm (Space)">
+            <span>🚀</span>
+            <span>Launch Swarm</span>
+          </button>
+          <button class="btn-action" id="btn-burst" title="Trigger Shockwave Burst">
+            <span>⚡</span>
+            <span>Shockwave</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Panel: Live Metrics & Interactive Guide -->
+      <aside class="info-card">
+        <div class="panel-section-title">
+          <span>Engine Telemetry</span>
+          <span style="color:var(--accent-cyan);">XTK 3D</span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="stat-row">
+            <span class="stat-label">Active Cubes:</span>
+            <span class="stat-value highlight" id="stat-cubes">195</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Frame Rate:</span>
+            <span class="stat-value" id="stat-fps">60 FPS</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Flying Comets:</span>
+            <span class="stat-value highlight" id="stat-flying">35</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Active Mode:</span>
+            <span class="stat-value" id="stat-mode">VORTEX</span>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">
+          <div class="panel-section-title" style="margin-bottom: 8px;">
+            <span>Shortcuts & Controls</span>
+          </div>
+          <div class="kbd-list">
+            <div class="kbd-item"><span>Orbit / Rotate</span> <kbd>Left Drag</kbd></div>
+            <div class="kbd-item"><span>Zoom</span> <kbd>Scroll / Right Drag</kbd></div>
+            <div class="kbd-item"><span>Pan Camera</span> <kbd>Middle Drag</kbd></div>
+            <div class="kbd-item"><span>Launch Comets</span> <kbd>Space</kbd></div>
+            <div class="kbd-item"><span>Switch Formations</span> <kbd>1 - 6</kbd></div>
+            <div class="kbd-item"><span>Cycle Colors</span> <kbd>C</kbd></div>
+            <div class="kbd-item"><span>Toggle Wireframe</span> <kbd>M</kbd></div>
+            <div class="kbd-item"><span>Sound Pulse</span> <kbd>A</kbd></div>
+            <div class="kbd-item"><span>Hide HUD</span> <kbd>H</kbd></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      // -------------------------------------------------------------
+      // 1. CONFIGURATION & STATE
+      // -------------------------------------------------------------
+      var NUM_BASE_CUBES = 160;
+      var NUM_FLYING_CUBES = 35;
+      var TOTAL_CUBES = NUM_BASE_CUBES + NUM_FLYING_CUBES;
+
+      var state = {
+        preset: 'vortex',
+        palette: 'cyberpunk',
+        orbitSpeed: 1.0,
+        waveIntensity: 1.0,
+        autoOrbit: true,
+        flyingCubesEnabled: true,
+        cubeSpinEnabled: true,
+        wireframe: false,
+        audioActive: false,
+        time: 0,
+        shockwaveTime: -999,
+        shockwavePos: [0, 0, 0],
+        userDragging: false,
+        lastInteractionTime: 0,
+        hudVisible: true
+      };
+
+      // Color Palettes (Normalized RGB: 0.0 - 1.0)
+      var palettes = {
+        cyberpunk: [
+          [0.0, 0.94, 1.0],   // Electric Cyan
+          [1.0, 0.0, 0.48],   // Hot Magenta
+          [0.61, 0.31, 0.87], // Deep Violet
+          [1.0, 0.74, 0.04],  // Neon Gold
+          [0.05, 1.0, 0.6]    // Bright Mint
+        ],
+        aurora: [
+          [0.0, 1.0, 0.66],   // Emerald Green
+          [0.0, 0.71, 0.85],  // Arctic Teal
+          [0.45, 0.04, 0.72], // Royal Indigo
+          [0.78, 0.45, 1.0],  // Lavender
+          [0.2, 0.9, 1.0]     // Icy Blue
+        ],
+        solar: [
+          [1.0, 0.75, 0.04],  // Solar Gold
+          [0.98, 0.34, 0.03], // Blaze Orange
+          [1.0, 0.0, 0.43],   // Flare Crimson
+          [1.0, 0.92, 0.65],  // Incandescent White
+          [0.85, 0.1, 0.1]    // Ruby
+        ],
+        synthwave: [
+          [0.97, 0.15, 0.52], // Neon Pink
+          [0.45, 0.04, 0.72], // Midnight Purple
+          [0.3, 0.79, 0.94],  // Electric Sky Blue
+          [0.98, 0.55, 0.25], // Sunset Tangerine
+          [0.65, 0.2, 0.9]    // Electric Orchid
+        ],
+        rainbow: [
+          [1.0, 0.1, 0.1],
+          [1.0, 0.6, 0.0],
+          [1.0, 1.0, 0.1],
+          [0.1, 1.0, 0.2],
+          [0.0, 0.8, 1.0],
+          [0.7, 0.1, 1.0]
+        ]
+      };
+
+      // -------------------------------------------------------------
+      // 2. INITIALIZE XTK RENDERER
+      // -------------------------------------------------------------
+      var container = document.getElementById('xtk-container');
+      var r = new X.renderer3D();
+      r.container = container;
+      r.init();
+
+      // Set dark background color in XTK
+      r.bgColor = [0.03, 0.03, 0.06];
+
+      // Set initial camera position & focus
+      r.camera.position = [0, 0, 420];
+      r.camera.focus = [0, 0, 0];
+
+      // -------------------------------------------------------------
+      // 3. CUBE ENTITY DATA STRUCTURES
+      // -------------------------------------------------------------
+      var baseCubes = [];
+      var flyingCubes = [];
+      var allCubes = [];
+
+      // Helper: set cube 4x4 transform matrix (Column-Major WebGL)
+      function applyCubeTransform(cube, px, py, pz, rx, ry, rz, s) {
+        var cx = Math.cos(rx), sx = Math.sin(rx);
+        var cy = Math.cos(ry), sy = Math.sin(ry);
+        var cz = Math.cos(rz), sz = Math.sin(rz);
+
+        var m00 = (cy * cz) * s;
+        var m01 = (cy * sz) * s;
+        var m02 = (-sy) * s;
+
+        var m10 = (sx * sy * cz - cx * sz) * s;
+        var m11 = (sx * sy * sz + cx * cz) * s;
+        var m12 = (sx * cy) * s;
+
+        var m20 = (cx * sy * cz + sx * sz) * s;
+        var m21 = (cx * sy * sz - sx * cz) * s;
+        var m22 = (cx * cy) * s;
+
+        var m = cube.transform.matrix;
+        m[0] = m00; m[1] = m01; m[2] = m02; m[3] = 0;
+        m[4] = m10; m[5] = m11; m[6] = m12; m[7] = 0;
+        m[8] = m20; m[9] = m21; m[10] = m22; m[11] = 0;
+        m[12] = px; m[13] = py; m[14] = pz;  m[15] = 1;
+
+        cube.transform.modified();
+      }
+
+      // Instantiate Base Sculpture Cubes
+      for (var i = 0; i < NUM_BASE_CUBES; i++) {
+        var c = new X.cube();
+        // default 20x20x20 box size
+        c.color = [0.0, 0.9, 1.0];
+        c.opacity = 0.92;
+
+        c.customData = {
+          id: i,
+          x: 0, y: 0, z: 0,
+          targetX: 0, targetY: 0, targetZ: 0,
+          rx: Math.random() * Math.PI * 2,
+          ry: Math.random() * Math.PI * 2,
+          rz: Math.random() * Math.PI * 2,
+          spinSpeedX: (Math.random() - 0.5) * 0.04,
+          spinSpeedY: (Math.random() - 0.5) * 0.04,
+          spinSpeedZ: (Math.random() - 0.5) * 0.04,
+          scale: 0.85,
+          colorPhase: i / NUM_BASE_CUBES,
+          impulseX: 0, impulseY: 0, impulseZ: 0
+        };
+
+        r.add(c);
+        baseCubes.push(c);
+        allCubes.push(c);
+      }
+
+      // Instantiate Flying Asteroid / Comet Cubes
+      function resetFlyingCube(c, spawnFromCenter) {
+        var d = c.customData;
+        if (spawnFromCenter) {
+          d.x = (Math.random() - 0.5) * 40;
+          d.y = (Math.random() - 0.5) * 40;
+          d.z = (Math.random() - 0.5) * 40;
+          var speed = 3.5 + Math.random() * 4.5;
+          var theta = Math.random() * Math.PI * 2;
+          var phi = (Math.random() - 0.5) * Math.PI;
+          d.vx = Math.cos(theta) * Math.cos(phi) * speed;
+          d.vy = Math.sin(phi) * speed;
+          d.vz = Math.sin(theta) * Math.cos(phi) * speed;
+        } else {
+          // Spawn from outer perimeter heading inward/tangential
+          var dist = 350 + Math.random() * 150;
+          var angle = Math.random() * Math.PI * 2;
+          var height = (Math.random() - 0.5) * 200;
+          d.x = Math.cos(angle) * dist;
+          d.y = height;
+          d.z = Math.sin(angle) * dist;
+
+          // Orbit trajectory with inward spiral
+          var vOrb = 2.0 + Math.random() * 3.0;
+          d.vx = -Math.sin(angle) * vOrb - (d.x / dist) * 1.5;
+          d.vy = (Math.random() - 0.5) * 1.2;
+          d.vz = Math.cos(angle) * vOrb - (d.z / dist) * 1.5;
+        }
+
+        d.scale = 0.4 + Math.random() * 0.55;
+        d.spinSpeedX = (Math.random() - 0.5) * 0.12;
+        d.spinSpeedY = (Math.random() - 0.5) * 0.12;
+        d.spinSpeedZ = (Math.random() - 0.5) * 0.12;
+        d.life = 0;
+        d.maxLife = 200 + Math.random() * 300;
+      }
+
+      for (var f = 0; f < NUM_FLYING_CUBES; f++) {
+        var fc = new X.cube();
+        fc.color = [1.0, 0.2, 0.7];
+        fc.opacity = 0.85;
+
+        fc.customData = {
+          isFlying: true,
+          id: NUM_BASE_CUBES + f,
+          x: 0, y: 0, z: 0,
+          vx: 0, vy: 0, vz: 0,
+          rx: Math.random() * Math.PI * 2,
+          ry: Math.random() * Math.PI * 2,
+          rz: Math.random() * Math.PI * 2,
+          spinSpeedX: 0, spinSpeedY: 0, spinSpeedZ: 0,
+          scale: 0.5,
+          colorPhase: Math.random()
+        };
+
+        resetFlyingCube(fc, false);
+        // stagger initial positions
+        for (var step = 0; step < f * 10; step++) {
+          fc.customData.x += fc.customData.vx;
+          fc.customData.y += fc.customData.vy;
+          fc.customData.z += fc.customData.vz;
+        }
+
+        r.add(fc);
+        flyingCubes.push(fc);
+        allCubes.push(fc);
+      }
+
+      // -------------------------------------------------------------
+      // 4. MATHEMATICAL SCULPTURE FORMATIONS
+      // -------------------------------------------------------------
+      function calculateBaseFormation(i, mode, time, intensity) {
+        var pos = { x: 0, y: 0, z: 0, scale: 0.85 };
+        var N = NUM_BASE_CUBES;
+
+        switch (mode) {
+          case 'matrix': // 3D Hypercube Lattice (Grid with spherical wave ripples)
+            var side = 5; // 5x5x5 grid
+            var gx = i % side;
+            var gy = Math.floor(i / side) % side;
+            var gz = Math.floor(i / (side * side)) % side;
+            var spacing = 42;
+
+            var ox = (gx - (side - 1) / 2) * spacing;
+            var oy = (gy - (side - 1) / 2) * spacing;
+            var oz = (gz - (side - 1) / 2) * spacing;
+            var dist = Math.sqrt(ox * ox + oy * oy + oz * oz);
+
+            // Dynamic sine breath & wave pulse
+            var wave = Math.sin(time * 2.2 - dist * 0.04) * 14 * intensity;
+            var breath = 1.0 + Math.sin(time * 1.5) * 0.12 * intensity;
+
+            pos.x = ox * breath + (ox / (dist + 0.1)) * wave;
+            pos.y = oy * breath + (oy / (dist + 0.1)) * wave;
+            pos.z = oz * breath + (oz / (dist + 0.1)) * wave;
+            pos.scale = 0.75 + Math.sin(time * 3 + dist * 0.05) * 0.2;
+            break;
+
+          case 'vortex': // Cosmic Logarithmic Galactic Spiral
+            var arm = i % 3;
+            var tArm = (Math.floor(i / 3) / (N / 3));
+            var radius = 22 + Math.pow(tArm, 1.2) * 230;
+            var theta = arm * ((Math.PI * 2) / 3) + tArm * Math.PI * 4.5 + time * 0.7;
+
+            pos.x = Math.cos(theta) * radius;
+            pos.y = Math.sin(tArm * Math.PI * 3 + time * 1.8) * (26 * intensity) + (tArm - 0.5) * 35;
+            pos.z = Math.sin(theta) * radius;
+            pos.scale = 0.6 + (1 - tArm * 0.5) * 0.45;
+            break;
+
+          case 'helix': // Double Helix DNA with bridging nucleotide rungs
+            var strand = i % 2;
+            var rung = Math.floor(i / 2);
+            var totalRungs = N / 2;
+            var hRatio = (rung / totalRungs);
+            var hY = (hRatio - 0.5) * 320;
+            var angle = hRatio * Math.PI * 6 + time * 1.2;
+            var hRadius = 75 * intensity;
+
+            if (i % 6 === 0) {
+              // Bridging rung cube
+              pos.x = (Math.cos(angle) * (strand === 0 ? 0.4 : -0.4)) * hRadius;
+              pos.y = hY;
+              pos.z = (Math.sin(angle) * (strand === 0 ? 0.4 : -0.4)) * hRadius;
+              pos.scale = 0.55;
+            } else {
+              // Main helical strands
+              var strandAngle = angle + (strand * Math.PI);
+              pos.x = Math.cos(strandAngle) * hRadius;
+              pos.y = hY;
+              pos.z = Math.sin(strandAngle) * hRadius;
+              pos.scale = 0.8;
+            }
+            break;
+
+          case 'wave': // Cybernetic Fluid Ocean Lattice
+            var cols = 16;
+            var rows = Math.ceil(N / cols);
+            var col = i % cols;
+            var row = Math.floor(i / cols);
+            var wSpacing = 24;
+
+            var wx = (col - (cols - 1) / 2) * wSpacing;
+            var wz = (row - (rows - 1) / 2) * wSpacing;
+            var wDist = Math.sqrt(wx * wx + wz * wz);
+
+            // Travelling dual sinusoidal waves
+            var wy = (Math.sin(wx * 0.045 + time * 3.0) * 32 +
+                      Math.cos(wz * 0.045 + time * 2.5) * 24 +
+                      Math.sin(wDist * 0.06 - time * 3.5) * 16) * intensity;
+
+            pos.x = wx;
+            pos.y = wy;
+            pos.z = wz;
+            pos.scale = 0.75 + (wy / 70) * 0.25;
+            break;
+
+          case 'sphere': // Sacred Fibonacci Sphere / Gyroscope Shells
+            var phi = Math.acos(1 - 2 * (i + 0.5) / N);
+            var goldenAngle = Math.PI * (3 - Math.sqrt(5));
+            var sTheta = i * goldenAngle + time * 0.8;
+            var sRadius = (130 + Math.sin(time * 2 + i * 0.2) * 18) * intensity;
+
+            pos.x = Math.sin(phi) * Math.cos(sTheta) * sRadius;
+            pos.y = Math.cos(phi) * sRadius;
+            pos.z = Math.sin(phi) * Math.sin(sTheta) * sRadius;
+            pos.scale = 0.7 + Math.sin(i + time * 2) * 0.2;
+            break;
+
+          case 'supernova': // Chaotic Zero-G Starburst Nebula
+            var seed = i * 137.5;
+            var snTheta = seed;
+            var snPhi = (i / N) * Math.PI;
+            var pulse = Math.sin(time * 1.5 + i * 0.1);
+            var snRadius = (60 + Math.abs(pulse) * 180 + Math.sin(i * 3 + time) * 30) * intensity;
+
+            pos.x = Math.sin(snPhi) * Math.cos(snTheta + time * 0.5) * snRadius;
+            pos.y = Math.cos(snPhi + time * 0.3) * snRadius;
+            pos.z = Math.sin(snPhi) * Math.sin(snTheta + time * 0.5) * snRadius;
+            pos.scale = 0.5 + Math.random() * 0.5;
+            break;
+        }
+
+        return pos;
+      }
+
+      // -------------------------------------------------------------
+      // 5. PROCEDURAL COLOR SHADING ENGINE
+      // -------------------------------------------------------------
+      function getPaletteColor(paletteName, phase, time, dist) {
+        var pal = palettes[paletteName] || palettes.cyberpunk;
+
+        if (paletteName === 'rainbow') {
+          // Dynamic HSV continuous hue cycle
+          var hue = ((phase + time * 0.08 + dist * 0.003) % 1.0 + 1.0) % 1.0;
+          return hsvToRgb(hue, 0.9, 1.0);
+        }
+
+        var offset = time * 0.2 + dist * 0.004;
+        var idxFloat = ((phase * pal.length + offset) % pal.length + pal.length) % pal.length;
+        var idx1 = Math.floor(idxFloat);
+        var idx2 = (idx1 + 1) % pal.length;
+        var frac = idxFloat - idx1;
+
+        // Smooth cosine interpolation between palette keys
+        var smoothFrac = 0.5 * (1 - Math.cos(frac * Math.PI));
+        var c1 = pal[idx1];
+        var c2 = pal[idx2];
+
+        return [
+          c1[0] + (c2[0] - c1[0]) * smoothFrac,
+          c1[1] + (c2[1] - c1[1]) * smoothFrac,
+          c1[2] + (c2[2] - c1[2]) * smoothFrac
+        ];
+      }
+
+      function hsvToRgb(h, s, v) {
+        var r, g, b, i, f, p, q, t;
+        i = Math.floor(h * 6);
+        f = h * 6 - i;
+        p = v * (1 - s);
+        q = v * (1 - f * s);
+        t = v * (1 - (1 - f) * s);
+        switch (i % 6) {
+          case 0: r = v; g = t; b = p; break;
+          case 1: r = q; g = v; b = p; break;
+          case 2: r = p; g = v; b = t; break;
+          case 3: r = p; g = q; b = v; break;
+          case 4: r = t; g = p; b = v; break;
+          case 5: r = v; g = p; b = q; break;
+        }
+        return [r, g, b];
+      }
+
+      // -------------------------------------------------------------
+      // 6. SYNTHESIZED WEB AUDIO PULSE (OPTIONAL / TOGGLEABLE)
+      // -------------------------------------------------------------
+      var audioCtx = null;
+      var osc1 = null, osc2 = null, audioGain = null;
+
+      function initAudio() {
+        try {
+          var AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContext) return;
+          audioCtx = new AudioContext();
+
+          // Ambient Fifth Drone (C3: 130.81Hz, G3: 196.00Hz)
+          osc1 = audioCtx.createOscillator();
+          osc2 = audioCtx.createOscillator();
+          audioGain = audioCtx.createGain();
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(130.81, audioCtx.currentTime);
+
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(196.00, audioCtx.currentTime);
+
+          audioGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+
+          var filter = audioCtx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(650, audioCtx.currentTime);
+
+          osc1.connect(filter);
+          osc2.connect(filter);
+          filter.connect(audioGain);
+          audioGain.connect(audioCtx.destination);
+
+          osc1.start();
+          osc2.start();
+        } catch (e) {
+          console.warn("Web Audio not supported or blocked", e);
+        }
+      }
+
+      function triggerAudioPulse() {
+        if (!audioCtx || !state.audioActive) return;
+        try {
+          var now = audioCtx.currentTime;
+          audioGain.gain.cancelScheduledValues(now);
+          audioGain.gain.setValueAtTime(0.22, now);
+          audioGain.gain.exponentialRampToValueAtTime(0.04, now + 0.45);
+        } catch (err) {}
+      }
+
+      // -------------------------------------------------------------
+      // 7. ANIMATION RENDER LOOP (XTK r.onRender)
+      // -------------------------------------------------------------
+      var frameCount = 0;
+      var lastFpsUpdate = performance.now();
+      var fpsElem = document.getElementById('stat-fps');
+
+      r.onRender = function() {
+        var dt = 0.016;
+        state.time += dt * state.orbitSpeed;
+        frameCount++;
+
+        // Live FPS measurement
+        var now = performance.now();
+        if (now - lastFpsUpdate >= 1000) {
+          var currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+          if (fpsElem) fpsElem.textContent = currentFps + " FPS";
+          frameCount = 0;
+          lastFpsUpdate = now;
+        }
+
+        // Automatic Orbiting Camera (pauses smoothly when user drags)
+        if (state.autoOrbit && (!state.userDragging) && (now - state.lastInteractionTime > 1200)) {
+          r.camera.rotate([state.orbitSpeed * 0.45, 0]);
+        }
+
+        // Periodic Audio Beat
+        if (state.audioActive && Math.floor(state.time * 2.5) !== Math.floor((state.time - dt * state.orbitSpeed) * 2.5)) {
+          triggerAudioPulse();
+        }
+
+        var shockwaveActive = (state.time - state.shockwaveTime) < 1.8;
+        var shockwaveRadius = (state.time - state.shockwaveTime) * 220;
+
+        // --- A. Update Base Sculpture Cubes ---
+        for (var i = 0; i < NUM_BASE_CUBES; i++) {
+          var cube = baseCubes[i];
+          var data = cube.customData;
+
+          // Target formation coordinates
+          var target = calculateBaseFormation(i, state.preset, state.time, state.waveIntensity);
+
+          // Smooth elastic transition interpolation
+          data.x += (target.x - data.x) * 0.08;
+          data.y += (target.y - data.y) * 0.08;
+          data.z += (target.z - data.z) * 0.08;
+
+          // Shockwave radial pulse physics
+          if (shockwaveActive) {
+            var sdx = data.x - state.shockwavePos[0];
+            var sdy = data.y - state.shockwavePos[1];
+            var sdz = data.z - state.shockwavePos[2];
+            var sDist = Math.sqrt(sdx * sdx + sdy * sdy + sdz * sdz) + 0.1;
+            var waveDiff = Math.abs(sDist - shockwaveRadius);
+            if (waveDiff < 45) {
+              var force = (1 - waveDiff / 45) * 12;
+              data.impulseX += (sdx / sDist) * force;
+              data.impulseY += (sdy / sDist) * force;
+              data.impulseZ += (sdz / sDist) * force;
+            }
+          }
+
+          // Dampen shockwave impulse
+          data.impulseX *= 0.88;
+          data.impulseY *= 0.88;
+          data.impulseZ *= 0.88;
+
+          var renderX = data.x + data.impulseX;
+          var renderY = data.y + data.impulseY;
+          var renderZ = data.z + data.impulseZ;
+
+          // Local Cube Spin Rotations
+          if (state.cubeSpinEnabled) {
+            data.rx += data.spinSpeedX * state.orbitSpeed;
+            data.ry += data.spinSpeedY * state.orbitSpeed;
+            data.rz += data.spinSpeedZ * state.orbitSpeed;
+          }
+
+          // Audio pulse scale effect
+          var currentScale = target.scale;
+          if (state.audioActive) {
+            currentScale *= (1.0 + Math.sin(state.time * 5.0 + i) * 0.15);
+          }
+
+          // Apply full 4x4 matrix transformation
+          applyCubeTransform(cube, renderX, renderY, renderZ, data.rx, data.ry, data.rz, currentScale);
+
+          // Real-time Procedural Color Calculation
+          var cubeDist = Math.sqrt(renderX * renderX + renderY * renderY + renderZ * renderZ);
+          var col = getPaletteColor(state.palette, data.colorPhase, state.time, cubeDist);
+
+          // Bright flash on shockwave impact
+          if (shockwaveActive && Math.abs(cubeDist - shockwaveRadius) < 30) {
+            col = [1.0, 1.0, 1.0];
+          }
+
+          cube.color = col;
+        }
+
+        // --- B. Update Flying Asteroids / Comet Cubes ---
+        for (var f = 0; f < NUM_FLYING_CUBES; f++) {
+          var fc = flyingCubes[f];
+          var fdata = fc.customData;
+
+          if (!state.flyingCubesEnabled) {
+            fc.visible = false;
+            continue;
+          }
+          fc.visible = true;
+
+          // Integrate trajectory velocity
+          fdata.x += fdata.vx * state.orbitSpeed;
+          fdata.y += fdata.vy * state.orbitSpeed;
+          fdata.z += fdata.vz * state.orbitSpeed;
+
+          // Spin rotations
+          fdata.rx += fdata.spinSpeedX * state.orbitSpeed;
+          fdata.ry += fdata.spinSpeedY * state.orbitSpeed;
+          fdata.rz += fdata.spinSpeedZ * state.orbitSpeed;
+
+          // Gentle gravitational pull towards origin
+          var fDist = Math.sqrt(fdata.x * fdata.x + fdata.y * fdata.y + fdata.z * fdata.z) + 0.1;
+          var gravity = 0.035;
+          fdata.vx -= (fdata.x / fDist) * gravity;
+          fdata.vy -= (fdata.y / fDist) * gravity;
+          fdata.vz -= (fdata.z / fDist) * gravity;
+
+          fdata.life++;
+          // Respawn if too far or expired
+          if (fDist > 550 || fdata.life > fdata.maxLife) {
+            resetFlyingCube(fc, Math.random() > 0.4);
+          }
+
+          applyCubeTransform(fc, fdata.x, fdata.y, fdata.z, fdata.rx, fdata.ry, fdata.rz, fdata.scale);
+
+          // Fast shifting color trail for comets
+          var fCol = getPaletteColor(state.palette, fdata.colorPhase, state.time * 2.5, fDist);
+          fc.color = fCol;
+        }
+      };
+
+      // Start XTK Render Loop
+      r.render();
+
+      // -------------------------------------------------------------
+      // 8. INTERACTIVE TRIGGERS & SHOCKWAVE BURSTS
+      // -------------------------------------------------------------
+      function triggerShockwave(origin) {
+        state.shockwaveTime = state.time;
+        state.shockwavePos = origin || [0, 0, 0];
+        showToast("⚡ Spatial Shockwave Triggered!");
+      }
+
+      function launchSwarm() {
+        // Shoot 14 flying cubes in a spherical starburst from camera toward center
+        for (var i = 0; i < Math.min(14, NUM_FLYING_CUBES); i++) {
+          var fc = flyingCubes[i];
+          var d = fc.customData;
+          d.x = (Math.random() - 0.5) * 80;
+          d.y = (Math.random() - 0.5) * 80;
+          d.z = (Math.random() - 0.5) * 80;
+
+          var speed = 6.0 + Math.random() * 5.0;
+          var theta = Math.random() * Math.PI * 2;
+          var phi = (Math.random() - 0.5) * Math.PI;
+
+          d.vx = Math.cos(theta) * Math.cos(phi) * speed;
+          d.vy = Math.sin(phi) * speed;
+          d.vz = Math.sin(theta) * Math.cos(phi) * speed;
+          d.scale = 0.7 + Math.random() * 0.4;
+          d.life = 0;
+          d.maxLife = 350;
+        }
+        showToast("🚀 Comet Swarm Launched!");
+      }
+
+      function showToast(text) {
+        var toast = document.getElementById('toast-msg');
+        if (!toast) return;
+        toast.textContent = text;
+        toast.classList.add('show');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(function() {
+          toast.classList.remove('show');
+        }, 1800);
+      }
+
+      function setFormation(presetName) {
+        if (!['matrix', 'vortex', 'helix', 'wave', 'sphere', 'supernova'].includes(presetName)) return;
+        state.preset = presetName;
+
+        // Update UI buttons
+        document.querySelectorAll('.preset-btn').forEach(function(btn) {
+          btn.classList.toggle('active', btn.dataset.preset === presetName);
+        });
+
+        var upper = presetName.toUpperCase();
+        var tag = document.getElementById('current-preset-tag');
+        if (tag) tag.textContent = upper;
+        var modeElem = document.getElementById('stat-mode');
+        if (modeElem) modeElem.textContent = upper;
+
+        showToast("Formation: " + upper);
+      }
+
+      function setPalette(paletteName) {
+        if (!palettes[paletteName]) return;
+        state.palette = paletteName;
+
+        document.querySelectorAll('.palette-btn').forEach(function(btn) {
+          btn.classList.toggle('active', btn.dataset.palette === paletteName);
+        });
+
+        showToast("Palette: " + paletteName.toUpperCase());
+      }
+
+      function toggleWireframe(forceVal) {
+        state.wireframe = (forceVal !== undefined) ? forceVal : !state.wireframe;
+        var chip = document.getElementById('toggle-wireframe');
+        if (chip) chip.classList.toggle('active', state.wireframe);
+
+        var mode = state.wireframe ? "LINES" : "TRIANGLES";
+        for (var i = 0; i < allCubes.length; i++) {
+          allCubes[i].type = mode;
+        }
+        showToast(state.wireframe ? "Mode: Wireframe Mesh" : "Mode: Solid Shading");
+      }
+
+      // -------------------------------------------------------------
+      // 9. EVENT LISTENERS & DOM CONTROLS
+      // -------------------------------------------------------------
+
+      // Preset Buttons
+      document.querySelectorAll('.preset-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          setFormation(this.dataset.preset);
+        });
+      });
+
+      // Palette Buttons
+      document.querySelectorAll('.palette-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          setPalette(this.dataset.palette);
+        });
+      });
+
+      // Speed Slider
+      var speedSlider = document.getElementById('speed-slider');
+      var speedVal = document.getElementById('speed-val');
+      if (speedSlider) {
+        speedSlider.addEventListener('input', function() {
+          state.orbitSpeed = parseFloat(this.value);
+          if (speedVal) speedVal.textContent = state.orbitSpeed.toFixed(1) + 'x';
+        });
+      }
+
+      // Wave Slider
+      var waveSlider = document.getElementById('wave-slider');
+      var waveVal = document.getElementById('wave-val');
+      if (waveSlider) {
+        waveSlider.addEventListener('input', function() {
+          state.waveIntensity = parseFloat(this.value);
+          if (waveVal) waveVal.textContent = state.waveIntensity.toFixed(1) + 'x';
+        });
+      }
+
+      // Toggles
+      var toggleOrbit = document.getElementById('toggle-orbit');
+      if (toggleOrbit) {
+        toggleOrbit.addEventListener('click', function() {
+          state.autoOrbit = !state.autoOrbit;
+          this.classList.toggle('active', state.autoOrbit);
+        });
+      }
+
+      var toggleFlying = document.getElementById('toggle-flying');
+      if (toggleFlying) {
+        toggleFlying.addEventListener('click', function() {
+          state.flyingCubesEnabled = !state.flyingCubesEnabled;
+          this.classList.toggle('active', state.flyingCubesEnabled);
+        });
+      }
+
+      var toggleSpin = document.getElementById('toggle-spin');
+      if (toggleSpin) {
+        toggleSpin.addEventListener('click', function() {
+          state.cubeSpinEnabled = !state.cubeSpinEnabled;
+          this.classList.toggle('active', state.cubeSpinEnabled);
+        });
+      }
+
+      var toggleWire = document.getElementById('toggle-wireframe');
+      if (toggleWire) {
+        toggleWire.addEventListener('click', function() {
+          toggleWireframe();
+        });
+      }
+
+      // Action Buttons
+      var btnSwarm = document.getElementById('btn-swarm');
+      if (btnSwarm) btnSwarm.addEventListener('click', launchSwarm);
+
+      var btnBurst = document.getElementById('btn-burst');
+      if (btnBurst) btnBurst.addEventListener('click', function() {
+        triggerShockwave([0, 0, 0]);
+      });
+
+      var btnResetCam = document.getElementById('reset-cam-btn');
+      if (btnResetCam) {
+        btnResetCam.addEventListener('click', function() {
+          r.camera.reset();
+          r.camera.position = [0, 0, 420];
+          r.camera.focus = [0, 0, 0];
+          showToast("Camera Reset");
+        });
+      }
+
+      // Audio Toggle Button
+      var audioBtn = document.getElementById('audio-toggle-btn');
+      var audioIcon = document.getElementById('audio-icon');
+      var audioLabel = document.getElementById('audio-label');
+      if (audioBtn) {
+        audioBtn.addEventListener('click', function() {
+          if (!audioCtx) initAudio();
+          state.audioActive = !state.audioActive;
+          this.classList.toggle('active', state.audioActive);
+          if (audioIcon) audioIcon.textContent = state.audioActive ? "🔊" : "🔇";
+          if (audioLabel) audioLabel.textContent = state.audioActive ? "Sound ON" : "Sound Pulse";
+          if (state.audioActive) triggerAudioPulse();
+          showToast(state.audioActive ? "Audio Pulse Activated" : "Audio Muted");
+        });
+      }
+
+      // UI HUD Visibility Toggle
+      var uiOverlay = document.getElementById('ui-overlay');
+      var uiToggleBtn = document.getElementById('ui-toggle-btn');
+      function toggleHUD() {
+        state.hudVisible = !state.hudVisible;
+        if (uiOverlay) uiOverlay.classList.toggle('hidden', !state.hudVisible);
+        if (uiToggleBtn) uiToggleBtn.textContent = state.hudVisible ? "⚙️" : "👁️";
+      }
+      if (uiToggleBtn) uiToggleBtn.addEventListener('click', toggleHUD);
+
+      // Cube Picking & Mouse Interaction
+      var mouseDownX = 0, mouseDownY = 0;
+      container.addEventListener('mousedown', function(e) {
+        state.userDragging = true;
+        mouseDownX = e.clientX;
+        mouseDownY = e.clientY;
+        state.lastInteractionTime = performance.now();
+      });
+
+      window.addEventListener('mouseup', function() {
+        state.userDragging = false;
+        state.lastInteractionTime = performance.now();
+      });
+
+      container.addEventListener('click', function(e) {
+        state.lastInteractionTime = performance.now();
+        var dx = e.clientX - mouseDownX;
+        var dy = e.clientY - mouseDownY;
+        if (Math.sqrt(dx * dx + dy * dy) > 8) {
+          // It was a drag/orbit, ignore click shockwave
+          return;
+        }
+
+        // XTK 3D picking to detect clicked cube
+        var pickedId = r.pick(e.clientX, e.clientY);
+        if (pickedId && pickedId !== -1) {
+          var pickedObj = r.get(pickedId);
+          if (pickedObj && pickedObj.customData) {
+            triggerShockwave([pickedObj.customData.x, pickedObj.customData.y, pickedObj.customData.z]);
+            return;
+          }
+        }
+        // If background clicked, small ripple
+        triggerShockwave([0, 0, 0]);
+      });
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', function(e) {
+        var key = e.key.toLowerCase();
+        if (key === '1') setFormation('matrix');
+        else if (key === '2') setFormation('vortex');
+        else if (key === '3') setFormation('helix');
+        else if (key === '4') setFormation('wave');
+        else if (key === '5') setFormation('sphere');
+        else if (key === '6') setFormation('supernova');
+        else if (key === ' ') {
+          e.preventDefault();
+          launchSwarm();
+        }
+        else if (key === 'c') {
+          var paletteKeys = Object.keys(palettes);
+          var nextIdx = (paletteKeys.indexOf(state.palette) + 1) % paletteKeys.length;
+          setPalette(paletteKeys[nextIdx]);
+        }
+        else if (key === 'm') toggleWireframe();
+        else if (key === 'h') toggleHUD();
+        else if (key === 'r') {
+          r.camera.reset();
+          r.camera.position = [0, 0, 420];
+          r.camera.focus = [0, 0, 0];
+          showToast("Camera Reset");
+        }
+        else if (key === 'a') {
+          if (audioBtn) audioBtn.click();
+        }
+      });
+
+      // Window Resize Listener
+      window.addEventListener('resize', function() {
+        if (r && r.resize) r.resize();
+      });
+    };
+  </script>
+</body>
+</html>
