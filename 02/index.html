@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XTK Rubik's Cube</title>
+  <style>
+    html, body {
+      background-color: #f2f1ec;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #container {
+      width: 100%;
+      height: 100%;
+    }
+
+    #container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      cursor: grab;
+    }
+
+    #container canvas:active {
+      cursor: grabbing;
+    }
+  </style>
+  <script type="text/javascript" src="xtk_edge.js"></script>
+  <script type="text/javascript">
+    if (typeof X === 'undefined') {
+      document.write('<script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"><\/script>');
+    }
+  </script>
+</head>
+<body>
+  <div id="container"></div>
+
+  <script type="text/javascript">
+    window.onload = function() {
+      // 1. Initialize XTK 3D Renderer
+      var container = document.getElementById('container');
+      var r = new X.renderer3D();
+      r.container = container;
+      r.init();
+
+      // Paper-like background color
+      r.bgColor = [0.95, 0.94, 0.91];
+
+      // Initial isometric camera view
+      r.camera.position = [130, 110, 160];
+      r.camera.focus = [0, 0, 0];
+
+      // 2. Dimensions & Colors (White & Grey pencil paper tones)
+      var CUBIE_SIZE = 20;
+      var SPACING = 22.5; // Leaves a 2.5 unit dark pencil seam between cubies
+      var STICKER_SIZE = 18.5;
+      var STICKER_THICK = 0.5;
+      var OFFSET = CUBIE_SIZE / 2 + STICKER_THICK / 2;
+
+      // Graphite seam core & paper/shading face tones
+      var graphiteSeam = [0.22, 0.22, 0.24]; // Dark pencil graphite
+      var faceColors = {
+        top:    [0.98, 0.98, 0.98], // White highlight (+Y)
+        front:  [0.86, 0.86, 0.87], // Light paper grey (+Z)
+        right:  [0.72, 0.72, 0.74], // Medium pencil grey (+X)
+        left:   [0.60, 0.60, 0.62], // Shading grey (-X)
+        bottom: [0.50, 0.50, 0.52], // Darker shading grey (-Y)
+        back:   [0.66, 0.66, 0.68]  // Shadow grey (-Z)
+      };
+
+      // 3. Build 3x3x3 Rubik's Cube
+      for (var x = -1; x <= 1; x++) {
+        for (var y = -1; y <= 1; y++) {
+          for (var z = -1; z <= 1; z++) {
+            var px = x * SPACING;
+            var py = y * SPACING;
+            var pz = z * SPACING;
+
+            // Cubie core body (dark graphite seams)
+            var cubie = new X.cube();
+            cubie.center = [px, py, pz];
+            cubie.lengthX = CUBIE_SIZE;
+            cubie.lengthY = CUBIE_SIZE;
+            cubie.lengthZ = CUBIE_SIZE;
+            cubie.color = graphiteSeam;
+            r.add(cubie);
+
+            // Exterior face stickers in paper white & grey tones
+            // Top (+Y)
+            if (y === 1) {
+              var sTop = new X.cube();
+              sTop.center = [px, py + OFFSET, pz];
+              sTop.lengthX = STICKER_SIZE;
+              sTop.lengthY = STICKER_THICK;
+              sTop.lengthZ = STICKER_SIZE;
+              sTop.color = faceColors.top;
+              r.add(sTop);
+            }
+            // Bottom (-Y)
+            if (y === -1) {
+              var sBottom = new X.cube();
+              sBottom.center = [px, py - OFFSET, pz];
+              sBottom.lengthX = STICKER_SIZE;
+              sBottom.lengthY = STICKER_THICK;
+              sBottom.lengthZ = STICKER_SIZE;
+              sBottom.color = faceColors.bottom;
+              r.add(sBottom);
+            }
+            // Front (+Z)
+            if (z === 1) {
+              var sFront = new X.cube();
+              sFront.center = [px, py, pz + OFFSET];
+              sFront.lengthX = STICKER_SIZE;
+              sFront.lengthY = STICKER_SIZE;
+              sFront.lengthZ = STICKER_THICK;
+              sFront.color = faceColors.front;
+              r.add(sFront);
+            }
+            // Back (-Z)
+            if (z === -1) {
+              var sBack = new X.cube();
+              sBack.center = [px, py, pz - OFFSET];
+              sBack.lengthX = STICKER_SIZE;
+              sBack.lengthY = STICKER_SIZE;
+              sBack.lengthZ = STICKER_THICK;
+              sBack.color = faceColors.back;
+              r.add(sBack);
+            }
+            // Right (+X)
+            if (x === 1) {
+              var sRight = new X.cube();
+              sRight.center = [px + OFFSET, py, pz];
+              sRight.lengthX = STICKER_THICK;
+              sRight.lengthY = STICKER_SIZE;
+              sRight.lengthZ = STICKER_SIZE;
+              sRight.color = faceColors.right;
+              r.add(sRight);
+            }
+            // Left (-X)
+            if (x === -1) {
+              var sLeft = new X.cube();
+              sLeft.center = [px - OFFSET, py, pz];
+              sLeft.lengthX = STICKER_THICK;
+              sLeft.lengthY = STICKER_SIZE;
+              sLeft.lengthZ = STICKER_SIZE;
+              sLeft.color = faceColors.left;
+              r.add(sLeft);
+            }
+          }
+        }
+      }
+
+      // 4. Slow, Smooth Camera Spinning Loop
+      var userInteracting = false;
+      var lastInteraction = 0;
+
+      container.addEventListener('mousedown', function() {
+        userInteracting = true;
+        lastInteraction = performance.now();
+      });
+
+      window.addEventListener('mouseup', function() {
+        userInteracting = false;
+        lastInteraction = performance.now();
+      });
+
+      r.onRender = function() {
+        // Slowly rotate camera when not actively dragged by user
+        if (!userInteracting && performance.now() - lastInteraction > 1200) {
+          r.camera.rotate([0.4, 0.1]);
+        }
+      };
+
+      // 5. Start Rendering
+      r.render();
+
+      // Window resize
+      window.addEventListener('resize', function() {
+        if (r && r.resize) r.resize();
+      });
+    };
+  </script>
+</body>
+</html>
