@@ -605,11 +605,11 @@
     }
   </style>
 
-  <!-- Load XTK library from CDN with local fallback -->
-  <script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"></script>
+  <!-- Load XTK library from local folder with CDN fallback -->
+  <script type="text/javascript" src="xtk_edge.js"></script>
   <script type="text/javascript">
     if (typeof X === 'undefined') {
-      document.write('<script type="text/javascript" src="xtk_edge.js"><\/script>');
+      document.write('<script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"><\/script>');
     }
   </script>
 </head>
@@ -921,7 +921,7 @@
       r.bgColor = [0.03, 0.03, 0.06];
 
       // Set initial camera position & focus
-      r.camera.position = [0, 0, 420];
+      r.camera.position = [0, 120, 380];
       r.camera.focus = [0, 0, 0];
 
       // -------------------------------------------------------------
@@ -1411,6 +1411,13 @@
         }
       };
 
+      // Ensure camera is properly positioned on first frame
+      r.onShowtime = function() {
+        r.camera.position = [0, 120, 380];
+        r.camera.focus = [0, 0, 0];
+        r.camera.up = [0, 0, 1];
+      };
+
       // Start XTK Render Loop
       r.render();
 
@@ -1581,7 +1588,7 @@
       if (btnResetCam) {
         btnResetCam.addEventListener('click', function() {
           r.camera.reset();
-          r.camera.position = [0, 0, 420];
+          r.camera.position = [0, 120, 380];
           r.camera.focus = [0, 0, 0];
           showToast("Camera Reset");
         });
@@ -1671,7 +1678,7 @@
         else if (key === 'h') toggleHUD();
         else if (key === 'r') {
           r.camera.reset();
-          r.camera.position = [0, 0, 420];
+          r.camera.position = [0, 120, 380];
           r.camera.focus = [0, 0, 0];
           showToast("Camera Reset");
         }
